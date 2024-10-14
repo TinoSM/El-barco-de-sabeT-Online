@@ -80,7 +80,7 @@ def seleccionar_ruta_m3u():
     return None
 
 # Función para exportar a un archivo M3U
-def exportar_m3u(enlaces, titulos):
+def exportar_m3u(enlaces, titulos, origen):
     ruta_m3u = seleccionar_ruta_m3u()
 
     if ruta_m3u:
@@ -89,6 +89,17 @@ def exportar_m3u(enlaces, titulos):
                 # Escribir la cabecera M3U y el origen del EPG
                 f.write("#EXTM3U url-tvg=\"https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml, https://raw.githubusercontent.com/Icastresana/lista1/main/epg.xml\"\n")
 
+                # Obtener la fecha actual en el formato dd-mm-YY HH:MM
+                fecha_actual = time.strftime('%d-%m-%Y %H:%M')
+
+                # Agregar un canal ficticio que muestre el origen dinámico y la fecha, con el enlace correcto
+                canal_ficticio = (
+                    f'#EXTINF:-1,Origen: {origen} (Fecha: {fecha_actual})\n'
+                    'plugin://script.module.horus?action=play&id=8819c851e10adc18ad914805ec4a13ddfb67063c\n'
+                )
+                f.write(canal_ficticio)
+
+                # Escribir los canales reales
                 for titulo, enlace in zip(titulos, enlaces):
                     # Eliminar los últimos 4 dígitos del título y normalizar
                     nombre_canal = " ".join(titulo.split()[:-1]).strip().lower()  # Obtener solo el nombre sin los últimos 4 dígitos y en minúsculas
@@ -97,12 +108,12 @@ def exportar_m3u(enlaces, titulos):
                         f.write(f'#EXTINF:-1 tvg-id="{canal.tvg_id}" tvg-logo="{canal.logo}",{titulo}\n{enlace}\n')
                     else:
                         f.write(f"#EXTINF:-1,{titulo}\n{enlace}\n")
-            xbmcgui.Dialog().notification("Éxito", f"Lista M3U exportada a {ruta_m3u}")
+
+            xbmcgui.Dialog().ok("Éxito", f"Lista M3U exportada a {ruta_m3u}")
         except Exception as e:
-            xbmcgui.Dialog().notification("Error", f"No se pudo exportar el archivo M3U: {str(e)}")
+            xbmcgui.Dialog().ok("Error", f"No se pudo exportar el archivo M3U: {str(e)}")
     else:
         xbmcgui.Dialog().notification("Cancelado", "Exportación M3U cancelada.")
-
 
 # Función para obtener la lista de proxies desde la URL
 def obtener_proxies(url):
@@ -225,10 +236,10 @@ def actualizar_lista():
     enlaces, titulos = extraer_enlaces(contenido_html)
 
     # Establecer la fecha de la última actualización
-    fecha = time.strftime('%Y-%m-%d %H:%M:%S')  # Obtener la fecha y hora actual
+    fecha = time.strftime('%d-%m-%Y %H:%M')  # Obtener la fecha y hora actual
 
     guardar_cache(enlaces, titulos, origen_seleccionado)
-    xbmcgui.Dialog().notification("Atención", "Sal y entra del addon para ver los cambios reflejados")
+    xbmcgui.Dialog().ok("Atención", "Descarga correcta.\nSal y entra del addon para ver los cambios reflejados")
     # Forzar el refresco de la interfaz
     xbmcplugin.endOfDirectory(handle, updateListing=True)
     return enlaces, titulos, origen_seleccionado, fecha  # Retornar siempre cuatro elementos
@@ -242,7 +253,7 @@ def mostrar_menu_principal():
         if not enlaces:  # Si no se puede actualizar o se cancela, mostrar mensaje y salir
             xbmcgui.Dialog().notification("Información", "No se pudo obtener canales, por favor verifica la conexión.")
             return
-        fecha = time.strftime('%Y-%m-%d %H:%M:%S')  # Asignar la fecha al valor actual
+        fecha = time.strftime('%d-%m-%Y %H:%M')  # Asignar la fecha al valor actual
         origen = "Desconocido"  # O valor predeterminado
     else:
         enlaces, titulos, origen, fecha = cache['enlaces'], cache['titulos'], cache['origen'], cache['fecha']
@@ -279,6 +290,6 @@ if action == 'actualizar':
     actualizar_lista()
 elif action == 'exportar':
     cache = cargar_cache()
-    exportar_m3u(cache['enlaces'], cache['titulos'])
+    exportar_m3u(cache['enlaces'], cache['titulos'], cache['origen'])
 else:
     mostrar_menu_principal()
