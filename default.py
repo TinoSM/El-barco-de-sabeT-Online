@@ -3,6 +3,7 @@ import os
 import xbmc
 import xbmcgui
 import xbmcaddon
+import xbmcplugin
 import urllib.request
 import json
 import re
@@ -12,6 +13,10 @@ import time
 addon_dir = xbmcaddon.Addon().getAddonInfo('path')
 lib_path = os.path.join(addon_dir, 'lib')
 sys.path.append(lib_path)
+
+# Obtener el ID del plugin actual para el modo de video
+plugin_url = sys.argv[0]
+handle = int(sys.argv[1])
 
 CACHE_FILE = os.path.join(addon_dir, 'cache.json')
 
@@ -176,17 +181,18 @@ def actualizar_lista():
     seleccion_actualizar = xbmcgui.Dialog().select("Selecciona el servidor para actualizar", opciones_actualizar)
 
     if seleccion_actualizar == -1:  # Si el usuario cancela, salir
-        return None, None, None
+        return [], [], "Cancelado", None  # Cambiado a una lista vacía en lugar de None
 
-    url_seleccionada = "https://elcano.top" if seleccion_actualizar == 0 else "https://viendoelfutbolporlaface.pages.dev/"
+    # Definir el origen basado en la selección
     origen_seleccionado = "Principal" if seleccion_actualizar == 0 else "Espejo"
+    url_seleccionada = "https://elcano.top" if seleccion_actualizar == 0 else "https://viendoelfutbolporlaface.pages.dev/"
 
     proxies_url = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json"
     proxies = obtener_proxies(proxies_url)
 
     if not proxies:
         xbmcgui.Dialog().notification("Error", "No se encontraron proxies.")
-        return None, None, None
+        return [], [], "Sin Proxies", None  # Cambiado a listas vacías en lugar de None
 
     # Filtrar proxies solo de Asia
     proxies_asia = filtrar_proxies_asia(proxies)
@@ -214,65 +220,65 @@ def actualizar_lista():
 
     if contenido_html is None:
         xbmcgui.Dialog().notification("Error", "No se pudo obtener contenido.")
-        return None, None, None
+        return [], [], "Error en Contenido", None  # Cambiado a listas vacías en lugar de None
 
     enlaces, titulos = extraer_enlaces(contenido_html)
+
+    # Establecer la fecha de la última actualización
+    fecha = time.strftime('%Y-%m-%d %H:%M:%S')  # Obtener la fecha y hora actual
+
     guardar_cache(enlaces, titulos, origen_seleccionado)
+    xbmcgui.Dialog().notification("Atención", "Sal y entra del addon para ver los cambios reflejados")
+    # Forzar el refresco de la interfaz
+    xbmcplugin.endOfDirectory(handle, updateListing=True)
+    return enlaces, titulos, origen_seleccionado, fecha  # Retornar siempre cuatro elementos
 
-    return enlaces, titulos, origen_seleccionado
-
-# Función principal
-def main():
-    # Cargar el caché al inicio
+# Menú principal en modo video
+def mostrar_menu_principal():
     cache = cargar_cache()
-    enlaces_cache = cache.get('enlaces', [])
-    titulos_cache = cache.get('titulos', [])
-    origen_cache = cache.get('origen', 'Desconocido')
-    fecha_cache = cache.get('fecha', 'Desconocida')
 
-    # Verificar si hay caché disponible
-    if enlaces_cache and titulos_cache:
-        # Mostrar las opciones desde el caché incluyendo el origen y la fecha
-        opciones = [f"Actualizar lista (Última: {origen_cache}, {fecha_cache})", "Exportar M3U"] + titulos_cache
+    if not cache:
+        enlaces, titulos, origen, fecha = actualizar_lista()
+        if not enlaces:  # Si no se puede actualizar o se cancela, mostrar mensaje y salir
+            xbmcgui.Dialog().notification("Información", "No se pudo obtener canales, por favor verifica la conexión.")
+            return
+        fecha = time.strftime('%Y-%m-%d %H:%M:%S')  # Asignar la fecha al valor actual
+        origen = "Desconocido"  # O valor predeterminado
     else:
-        # Si no hay caché, directamente actualizar la lista sin mostrar primero los servidores
-        enlaces, titulos, _ = actualizar_lista()
-        if not enlaces or not titulos:
-            return
-        else:
-            # Mostrar la lista de títulos obtenida después de actualizar
-            seleccion = xbmcgui.Dialog().select("Selecciona un enlace", titulos)
-            if seleccion != -1:
-                reproducir_enlace(enlaces[seleccion])
-            return
+        enlaces, titulos, origen, fecha = cache['enlaces'], cache['titulos'], cache['origen'], cache['fecha']
 
-    # Mostrar el diálogo con las opciones cuando hay caché
-    seleccion = xbmcgui.Dialog().select("Selecciona una opción", opciones)
+    # Mostrar origen y fecha de la última actualización en el título del directorio
+    xbmcplugin.setPluginCategory(handle, f"Lista de Canales - Origen: {origen} (Última actualización: {fecha})")
 
-    if seleccion == -1:  # Si el usuario cancela, salir
-        return
+    for i, titulo in enumerate(titulos):
+        enlace = enlaces[i]
+        list_item = xbmcgui.ListItem(label=titulo)
+        list_item.setInfo('video', {'title': titulo})
+        list_item.setProperty('IsPlayable', 'true')
 
-    # Si se selecciona "Actualizar lista"
-    if seleccion == 0:
-        enlaces, titulos, origen = actualizar_lista()
-        if not enlaces or not titulos:
-            return
-        else:
-            # Guardar los nuevos enlaces y títulos en el caché tras actualizar la lista
-            guardar_cache(enlaces, titulos, origen)
-            # Mostrar la lista de títulos obtenida después de actualizar
-            seleccion = xbmcgui.Dialog().select("Selecciona un enlace", titulos)
-            if seleccion != -1:
-                reproducir_enlace(enlaces[seleccion])
-            return
+        # Añadir cada canal a la lista del directorio de videos
+        xbmcplugin.addDirectoryItem(handle, enlace, list_item, isFolder=False)
 
-    # Si selecciona "Exportar M3U"
-    elif seleccion == 1:
-        exportar_m3u(enlaces_cache, titulos_cache)
-        return
-    else:
-        # Reproducir el enlace seleccionado desde el caché
-        reproducir_enlace(enlaces_cache[seleccion - 2])
+    # Opción para actualizar la lista
+    actualizar_item = xbmcgui.ListItem(label="Actualizar lista")
+    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=actualizar', actualizar_item, isFolder=False)
 
-if __name__ == '__main__':
-    main()
+    # Opción para exportar la lista M3U
+    exportar_item = xbmcgui.ListItem(label="Exportar M3U")
+    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=exportar', exportar_item, isFolder=False)
+
+    # Finalizar el directorio para que se muestre el menú en modo video
+    xbmcplugin.endOfDirectory(handle)
+
+# Comprobamos la acción seleccionada por el usuario
+params = urllib.parse.parse_qs(sys.argv[2][1:])
+action = params.get('action', [None])[0]
+
+# Determinar la acción a realizar
+if action == 'actualizar':
+    actualizar_lista()
+elif action == 'exportar':
+    cache = cargar_cache()
+    exportar_m3u(cache['enlaces'], cache['titulos'])
+else:
+    mostrar_menu_principal()
