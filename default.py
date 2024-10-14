@@ -53,7 +53,7 @@ def cargar_cache():
 
 # Función para guardar el caché con origen y fecha
 def guardar_cache(enlaces, titulos, origen):
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')  # Obtener fecha y hora actual
+    timestamp = time.strftime('%d-%m-%Y %H:%M')  # Obtener fecha y hora actual
     cache_data = {
         'enlaces': enlaces,
         'titulos': titulos,
@@ -248,24 +248,24 @@ def mostrar_menu_principal():
         enlaces, titulos, origen, fecha = cache['enlaces'], cache['titulos'], cache['origen'], cache['fecha']
 
     # Mostrar origen y fecha de la última actualización en el título del directorio
-    xbmcplugin.setPluginCategory(handle, f"Lista de Canales - Origen: {origen} (Última actualización: {fecha})")
+    xbmcplugin.setPluginCategory(handle, f"Lista de Canales - Origen: {origen} (Actualizado: {fecha})")
 
+    # Opción para actualizar la lista (primero en la lista)
+    actualizar_item = xbmcgui.ListItem(label="Actualizar lista")
+    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=actualizar', actualizar_item, isFolder=False)
+
+    # Opción para exportar la lista M3U (segundo en la lista)
+    exportar_item = xbmcgui.ListItem(label="Exportar M3U")
+    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=exportar', exportar_item, isFolder=False)
+
+    # Añadir los canales a la lista del directorio
     for i, titulo in enumerate(titulos):
         enlace = enlaces[i]
         list_item = xbmcgui.ListItem(label=titulo)
         list_item.setInfo('video', {'title': titulo})
         list_item.setProperty('IsPlayable', 'true')
 
-        # Añadir cada canal a la lista del directorio de videos
         xbmcplugin.addDirectoryItem(handle, enlace, list_item, isFolder=False)
-
-    # Opción para actualizar la lista
-    actualizar_item = xbmcgui.ListItem(label="Actualizar lista")
-    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=actualizar', actualizar_item, isFolder=False)
-
-    # Opción para exportar la lista M3U
-    exportar_item = xbmcgui.ListItem(label="Exportar M3U")
-    xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=exportar', exportar_item, isFolder=False)
 
     # Finalizar el directorio para que se muestre el menú en modo video
     xbmcplugin.endOfDirectory(handle)
