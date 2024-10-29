@@ -49,7 +49,7 @@ def extraer_enlaces(contenido):
     # Saltar la primera línea
     lineas = contenido.strip().split('\n')[1:]
     
-    # Procesar cada línea en el formato "La1:02b9307c5c97c86914cc5939d6bbeb5b4ec60b47"
+    # Procesar cada línea
     for linea in lineas:
         if ':' in linea:
             partes = linea.split(':')
