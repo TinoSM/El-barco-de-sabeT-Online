@@ -5,9 +5,9 @@ import xbmcgui
 import xbmcaddon
 import xbmcplugin
 import urllib.request
-import json
-import re
+import base64
 import time
+import json
 
 # Añadir la carpeta 'lib' a la ruta de búsqueda de Python
 addon_dir = xbmcaddon.Addon().getAddonInfo('path')
@@ -18,31 +18,50 @@ sys.path.append(lib_path)
 plugin_url = sys.argv[0]
 handle = int(sys.argv[1])
 
-CACHE_FILE = os.path.join(addon_dir, 'cache.json')
+CACHE_FILE = os.path.join(xbmcaddon.Addon().getAddonInfo('path'), 'cache.json')
 
-# Definición de la clase Canal
-class Canal:
-    def __init__(self, nombre, tvg_id, logo):
-        self.nombre = nombre
-        self.tvg_id = tvg_id
-        self.logo = logo
+# URL en Base64
+url_origen_base64 = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC9jMDYyZGJjODAyYWU3NmMwNTBlOWU3YmM0MjhiN2U2ZC9yYXcvMGZhNDZiZjc2M2ZhZmQ0NjNlODhjYWU1OTkxNGFmMWUzZDI3YWEzMy9iYXJjby50eHQ="
 
-# URL del archivo JSON con la lista de canales
-URL_CANAL_JSON = "https://raw.githubusercontent.com/ElBarcoDeSabeT/El-barco-de-sabeT-Online/refs/heads/main/canales.json"
-
-# Función para obtener la lista de canales desde una URL
-def obtener_canales_desde_url(url):
+# Función para obtener el contenido de la web sin proxy
+def obtener_contenido_web_sin_proxy():
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    }
     try:
-        with urllib.request.urlopen(url) as response:
-            data = response.read().decode('utf-8')
-            canales = json.loads(data)
-            return [Canal(canal['nombre'], canal['tvg_id'], canal['logo']) for canal in canales]
+        # Decodificar URL y obtener el contenido
+        url_decodificada = base64.b64decode(url_origen_base64).decode('utf-8')
+        req = urllib.request.Request(url_decodificada, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            contenido_base64 = response.read().decode('utf-8')
+            # Decodificar el contenido desde Base64
+            contenido = base64.b64decode(contenido_base64).decode('utf-8')
+            return contenido
     except Exception as e:
-        xbmcgui.Dialog().notification("Error", f"No se pudo cargar la lista de canales: {str(e)}")
-        return []
+        xbmcgui.Dialog().notification("Error", f"No se pudo obtener el contenido: {str(e)}")
+        return None
 
-# Cargar canales desde el archivo JSON remoto
-canales = obtener_canales_desde_url(URL_CANAL_JSON)
+# Función para extraer enlaces del contenido obtenido
+def extraer_enlaces(contenido):
+    enlaces = []
+    titulos = []
+    
+    # Saltar la primera línea
+    lineas = contenido.strip().split('\n')[1:]
+    
+    # Procesar cada línea en el formato "La1:02b9307c5c97c86914cc5939d6bbeb5b4ec60b47"
+    for linea in lineas:
+        if ':' in linea:
+            partes = linea.split(':')
+            titulo = partes[0]
+            enlace_id = partes[1].strip()
+            
+            # Crear el enlace en el formato adecuado
+            enlace = f"plugin://script.module.horus?action=play&id={enlace_id}"
+            enlaces.append(enlace)
+            titulos.append(titulo)
+    
+    return enlaces, titulos
 
 # Función para cargar el caché
 def cargar_cache():
@@ -63,7 +82,7 @@ def guardar_cache(enlaces, titulos, origen):
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
         json.dump(cache_data, f)
 
-# Función para mostrar un diálogo y seleccionar dónde guardar el archivo M3U
+# Función para exportar a un archivo M3U
 def seleccionar_ruta_m3u():
     dialog = xbmcgui.Dialog()
     ruta_seleccionada = dialog.browse(3, 'Selecciona la carpeta donde guardar', 'files')
@@ -79,7 +98,6 @@ def seleccionar_ruta_m3u():
 
     return None
 
-# Función para exportar a un archivo M3U
 def exportar_m3u(enlaces, titulos, origen):
     ruta_m3u = seleccionar_ruta_m3u()
 
@@ -101,13 +119,7 @@ def exportar_m3u(enlaces, titulos, origen):
 
                 # Escribir los canales reales
                 for titulo, enlace in zip(titulos, enlaces):
-                    # Eliminar los últimos 4 dígitos del título y normalizar
-                    nombre_canal = " ".join(titulo.split()[:-1]).strip().lower()  # Obtener solo el nombre sin los últimos 4 dígitos y en minúsculas
-                    canal = next((c for c in canales if c.nombre.lower() == nombre_canal), None)  # Comparar en minúsculas
-                    if canal:
-                        f.write(f'#EXTINF:-1 tvg-id="{canal.tvg_id}" tvg-logo="{canal.logo}",{titulo}\n{enlace}\n')
-                    else:
-                        f.write(f"#EXTINF:-1,{titulo}\n{enlace}\n")
+                    f.write(f"#EXTINF:-1,{titulo}\n{enlace}\n")
 
             xbmcgui.Dialog().ok("Éxito", f"Lista M3U exportada a {ruta_m3u}")
         except Exception as e:
@@ -115,136 +127,24 @@ def exportar_m3u(enlaces, titulos, origen):
     else:
         xbmcgui.Dialog().notification("Cancelado", "Exportación M3U cancelada.")
 
-# Función para obtener la lista de proxies desde la URL
-def obtener_proxies(url):
-    try:
-        with urllib.request.urlopen(url) as response:
-            proxies_json = json.loads(response.read().decode('utf-8'))
-            return proxies_json['proxies']  # Devolver la lista de proxies
-    except Exception as e:
-        xbmcgui.Dialog().notification("Error", f"No se pudo cargar la lista de proxies: {str(e)}")
-        return []
-
-# Filtrar proxies asiáticos
-def filtrar_proxies_asia(proxies):
-    proxies_asia = []
-    for proxy in proxies:
-        ip_data = proxy.get('ip_data')  # Obtener 'ip_data' de forma segura
-        if ip_data and ip_data.get('continentCode') == 'AS':
-            proxies_asia.append(proxy['proxy'])
-    return proxies_asia
-
-# Función para probar un proxy y obtener el contenido de la web
-def obtener_contenido_web_con_proxy(url, proxy):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-
-    proxy_handler = urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
-    opener = urllib.request.build_opener(proxy_handler)
-    urllib.request.install_opener(opener)
-
-    try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return response.read().decode('utf-8')
-    except Exception as e:
-        return None  # Devolvemos None en caso de error
-
-# Función para obtener el contenido de la web sin proxy
-def obtener_contenido_web_sin_proxy(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-    try:
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return response.read().decode('utf-8')
-    except Exception as e:
-        return None  # Devolvemos None en caso de error
-
-# Función para extraer enlaces de la página web
-def extraer_enlaces(html):
-    enlaces = []
-    titulos = []
-
-    patrones = re.findall(r'<a href="(acestream://[^"]+)"[^>]*>(.*?)</a>', html)
-
-    for enlace, titulo in patrones:
-        nuevo_enlace = enlace.replace("acestream://", "plugin://script.module.horus?action=play&id=")
-        enlaces.append(nuevo_enlace)
-
-        id_acestream = enlace.split("://")[1]  # Obtener solo el ID
-        ultimos_digitos = id_acestream[-4:]  # Obtener los últimos 4 dígitos
-
-        titulos.append(f"{titulo.strip()} {ultimos_digitos}")
-
-    return enlaces, titulos
-
-# Función para reproducir el enlace
-def reproducir_enlace(enlace):
-    xbmc.Player().play(enlace)
-
 # Función para actualizar y descargar la lista de enlaces
 def actualizar_lista():
-    # Permitir elegir entre el servidor principal y espejo para actualizar la lista
-    opciones_actualizar = ["Servidor Principal", "Servidor Espejo"]
-    seleccion_actualizar = xbmcgui.Dialog().select("Selecciona el servidor para actualizar", opciones_actualizar)
+    contenido = obtener_contenido_web_sin_proxy()
+    
+    if contenido:
+        enlaces, titulos = extraer_enlaces(contenido)
+        
+        # Guardar en caché y mostrar confirmación de descarga
+        origen = "Archivo Remoto"
+        guardar_cache(enlaces, titulos, origen)
+        xbmcgui.Dialog().ok("Éxito", "Descarga correcta. Reinicia el addon para ver los cambios.")
+        xbmcplugin.endOfDirectory(handle, updateListing=True)
+        
+        return enlaces, titulos, origen, time.strftime('%d-%m-%Y %H:%M')
+    else:
+        return [], [], "Error en Contenido", None
 
-    if seleccion_actualizar == -1:  # Si el usuario cancela, salir
-        return [], [], "Cancelado", None  # Cambiado a una lista vacía en lugar de None
-
-    # Definir el origen basado en la selección
-    origen_seleccionado = "Principal" if seleccion_actualizar == 0 else "Espejo"
-    url_seleccionada = "https://elcano.top" if seleccion_actualizar == 0 else "https://viendoelfutbolporlaface.pages.dev/"
-
-    proxies_url = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json"
-    proxies = obtener_proxies(proxies_url)
-
-    if not proxies:
-        xbmcgui.Dialog().notification("Error", "No se encontraron proxies.")
-        return [], [], "Sin Proxies", None  # Cambiado a listas vacías en lugar de None
-
-    # Filtrar proxies solo de Asia
-    proxies_asia = filtrar_proxies_asia(proxies)
-
-    # Intentar obtener el contenido de la web sin proxy
-    xbmcgui.Dialog().notification("Conexión", "Intentando conectar a servidor sin proxy")
-    contenido_html = obtener_contenido_web_sin_proxy(url_seleccionada)
-
-    if contenido_html is None:  # Si no se obtuvo contenido, intentamos con los proxies asiáticos
-        limite_intentos = 50  # Límite de intentos por vez
-        total_proxies = len(proxies_asia)
-
-        for i in range(0, total_proxies, limite_intentos):
-            proxies_a_probar = proxies_asia[i:i + limite_intentos]  # Seleccionar un bloque de proxies
-
-            for index, proxy in enumerate(proxies_a_probar):  # Enumerar los proxies
-                xbmcgui.Dialog().notification("Proxy", f"Usando proxy {i + index + 1} de {total_proxies}")
-                contenido_html = obtener_contenido_web_con_proxy(url_seleccionada, proxy)
-
-                if contenido_html:  # Salir si se obtiene contenido
-                    break
-            else:  # Si no se obtuvo contenido con el bloque actual
-                continue
-            break  # Salir si se obtuvo contenido
-
-    if contenido_html is None:
-        xbmcgui.Dialog().notification("Error", "No se pudo obtener contenido.")
-        return [], [], "Error en Contenido", None  # Cambiado a listas vacías en lugar de None
-
-    enlaces, titulos = extraer_enlaces(contenido_html)
-
-    # Establecer la fecha de la última actualización
-    fecha = time.strftime('%d-%m-%Y %H:%M')  # Obtener la fecha y hora actual
-
-    guardar_cache(enlaces, titulos, origen_seleccionado)
-    xbmcgui.Dialog().ok("Atención", "Descarga correcta.\nSal y entra del addon para ver los cambios reflejados")
-    # Forzar el refresco de la interfaz
-    xbmcplugin.endOfDirectory(handle, updateListing=True)
-    return enlaces, titulos, origen_seleccionado, fecha  # Retornar siempre cuatro elementos
-
-# Menú principal en modo video
+# Función para mostrar el menú principal con los enlaces obtenidos
 def mostrar_menu_principal():
     cache = cargar_cache()
 
@@ -253,8 +153,8 @@ def mostrar_menu_principal():
         if not enlaces:  # Si no se puede actualizar o se cancela, mostrar mensaje y salir
             xbmcgui.Dialog().notification("Información", "No se pudo obtener canales, por favor verifica la conexión.")
             return
-        fecha = time.strftime('%d-%m-%Y %H:%M')  # Asignar la fecha al valor actual
-        origen = "Desconocido"  # O valor predeterminado
+        fecha = time.strftime('%d-%m-%Y %H:%M')
+        origen = "Desconocido"
     else:
         enlaces, titulos, origen, fecha = cache['enlaces'], cache['titulos'], cache['origen'], cache['fecha']
 
@@ -269,9 +169,8 @@ def mostrar_menu_principal():
     exportar_item = xbmcgui.ListItem(label="Exportar M3U")
     xbmcplugin.addDirectoryItem(handle, plugin_url + '?action=exportar', exportar_item, isFolder=False)
 
-    # Añadir los canales a la lista del directorio
-    for i, titulo in enumerate(titulos):
-        enlace = enlaces[i]
+    # Añadir los enlaces a la lista del directorio
+    for titulo, enlace in zip(titulos, enlaces):
         list_item = xbmcgui.ListItem(label=titulo)
         list_item.setInfo('video', {'title': titulo})
         list_item.setProperty('IsPlayable', 'true')
