@@ -3,10 +3,9 @@ import urllib.request
 import xbmcplugin
 import xbmcgui
 import xbmc
+import datetime
 
 
-def mostrar_directos(handle):
-    xbmc.log("Directos: Iniciando mostrar_directos", level=xbmc.LOGINFO)
 
 def obtener_contenido_directos():
     # URL en Base64 para la lista de directos
@@ -42,6 +41,21 @@ def mostrar_directos(handle):
             lineas = contenido_decodificado.strip().split('\n')
             for linea in lineas:
                 xbmc.log(f"Directos: Procesando línea -> {linea}", level=xbmc.LOGINFO)
+
+                # Extraer fecha y hora del inicio de la línea
+                try:
+                    # Extraer la parte de la fecha y hora
+                    fecha_hora_str = linea.split(' CET')[0]
+                    fecha_hora_evento = datetime.datetime.strptime(fecha_hora_str, "%d/%m/%Y %H:%M")
+
+                    # Calcular la diferencia de tiempo con la hora actual
+                    diferencia = datetime.datetime.now() - fecha_hora_evento
+                    if diferencia.total_seconds() > 6 * 3600:  # Si es mayor a 6 horas, omitir el evento
+                        xbmc.log(f"Directos: Evento omitido por ser mayor a 6 horas -> {linea}", level=xbmc.LOGINFO)
+                        continue
+                except ValueError as e:
+                    xbmc.log(f"Directos: Error al analizar la fecha y hora -> {linea} | Error: {e}", level=xbmc.LOGWARNING)
+                    continue
 
                 # Dividir la línea en título y ID usando rsplit para obtener solo la última parte después de ":"
                 partes = linea.rsplit(':', 1)
