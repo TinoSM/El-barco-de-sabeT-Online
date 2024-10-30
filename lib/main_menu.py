@@ -52,7 +52,6 @@ def mostrar_menu_principal(handle, plugin_url, cache_file):
             list_item.setInfo('video', {'title': titulo})
             list_item.setProperty('IsPlayable', 'true')
             xbmcplugin.addDirectoryItem(handle, enlace, list_item, isFolder=False)
-            xbmc.log(f"Menú Principal: Canal añadido -> {titulo} | Enlace -> {enlace}", level=xbmc.LOGINFO)
     else:
         xbmc.log("Menú Principal: No hay enlaces ni títulos en caché para mostrar.", level=xbmc.LOGWARNING)
 
