@@ -12,7 +12,7 @@ importlib.reload(datetime)
 
 def obtener_contenido_directos():
     # URL en Base64 para la lista de directos
-    prt = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC80ZDRmYzY5OWFjZWY1NDBmMmI1MDhlYzQ3NTRhODk4Yy9yYXcvYWRmNDYzZGY3ZWM3ZjE4ZWZmMGJjMjQ2N2JkNDQ4NjhlNDliNzY2Zi9iYXJjbzIudHh0"
+    prt = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC80ZDRmYzY5OWFjZWY1NDBmMmI1MDhlYzQ3NTRhODk4Yy9yYXcvZTkzNzVlNmNkYzNmYmM0ODIwOGIyNWQ1ZWI5Y2JmZDcyM2FlMTQxNS9iYXJjbzIudHh0"
 
     # Decodificar URL
     bms = base64.b64decode(prt).decode('utf-8')
@@ -30,7 +30,7 @@ def obtener_contenido_directos():
         return None
 
 def analizar_fecha_manual(fecha_hora_str):
-    """Analiza manualmente una fecha y hora en el formato dd/mm/yyyy hh:mm."""   
+    """Analiza manualmente una fecha y hora en el formato dd/mm/yyyy hh:mm."""
     try:
         # Dividir la fecha y hora
         fecha_partes = fecha_hora_str.split(" ")
@@ -39,14 +39,14 @@ def analizar_fecha_manual(fecha_hora_str):
 
         # Extraer día, mes y año
         dia, mes, anio = map(int, fecha.split("/"))
-        
+
         # Extraer horas y minutos
         hora, minuto = map(int, hora.split(":"))
-        
+
         # Crear un objeto datetime con los componentes extraídos
         import datetime
         fecha_hora_evento = datetime.datetime(anio, mes, dia, hora, minuto)
-        
+
         xbmc.log(f"Directos: Fecha y hora analizada manualmente -> {fecha_hora_evento}", level=xbmc.LOGINFO)
         return fecha_hora_evento
     except Exception as e:
@@ -69,7 +69,7 @@ def mostrar_directos(handle):
             lineas = contenido_decodificado.strip().split('\n')
             for linea in lineas:
                 xbmc.log(f"Directos: Procesando línea -> {linea}", level=xbmc.LOGINFO)
-                
+
                 # Extraer y analizar la fecha y hora con el método manual
                 fecha_hora_str = linea.split(' CET')[0]
                 fecha_hora_evento = analizar_fecha_manual(fecha_hora_str)
@@ -112,7 +112,7 @@ def mostrar_directos(handle):
     else:
         xbmc.log("Directos: No se encontró contenido para mostrar", level=xbmc.LOGWARNING)
         xbmcgui.Dialog().notification("Error", "No se encontraron directos disponibles.")
-        
+
     # Liberar variables al final de la función
     contenido = None
     contenido_decodificado = None
