@@ -20,6 +20,6 @@ action = params.get('action', [None])[0]
 
 # Ejecutar la acción o mostrar el menú principal
 if action:
-    handle_action(action, handle, cache_file, params)  # Pasar `params` como argumento adicional
+    handle_action(action, handle, cache_file, params, plugin_url)
 else:
     mostrar_menu_principal(handle, plugin_url, cache_file)

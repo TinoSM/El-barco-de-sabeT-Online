@@ -9,8 +9,6 @@ from actualizar_lista import actualizar_lista
 from export_m3u import exportar_m3u
 from mostrar_directos import mostrar_directos
 
-from mostrar_directos import mostrar_directos  # Importar la función para directos
-
 def mostrar_menu_principal(handle, plugin_url, cache_file):
     # Cargar caché o actualizar lista si es la primera ejecución
     cache = cargar_cache(cache_file)
@@ -32,7 +30,7 @@ def mostrar_menu_principal(handle, plugin_url, cache_file):
 
     # Mostrar el contenido del caché
     enlaces, titulos, origen, fecha = cache['enlaces'], cache['titulos'], cache['origen'], cache['fecha']
-
+    xbmcplugin.setPluginCategory(handle, f" [El Barco de sabeT] Última actualización: {fecha}")
     # Opción de actualizar lista
     actualizar_item = xbmcgui.ListItem(label="Actualizar lista")
     xbmcplugin.addDirectoryItem(handle, f"{plugin_url}?action=actualizar", actualizar_item, isFolder=False)
@@ -61,17 +59,15 @@ def mostrar_menu_principal(handle, plugin_url, cache_file):
 
 
 # Manejo de las distintas acciones
-def handle_action(action, handle, cache_file, params):
+# Agregar plugin_url como parámetro de la función
+def handle_action(action, handle, cache_file, params, plugin_url):
     if action == 'actualizar':
-        enlaces, titulos, origen, fecha = actualizar_lista(cache_file, handle)  # Actualizar lista y guardar en caché
+        enlaces, titulos, origen, fecha = actualizar_lista(cache_file, handle)
         guardar_cache(cache_file, enlaces, titulos, origen, fecha)
-
-        # Recargar el menú principal después de actualizar la caché
         mostrar_menu_principal(handle, plugin_url, cache_file)
-
     elif action == 'exportar':
         cache = cargar_cache(cache_file)
-        exportar_m3u(cache['enlaces'], cache['titulos'], cache['origen'])
+        exportar_m3u(cache['enlaces'], cache['titulos'], cache['fecha'])
     elif action == 'directos':
         mostrar_directos(handle)
     else:

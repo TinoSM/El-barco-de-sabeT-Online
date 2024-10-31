@@ -44,22 +44,31 @@ def seleccionar_ruta_m3u():
     return None
 
 # Función para exportar a un archivo M3U
-def exportar_m3u(enlaces, titulos, origen):
+def exportar_m3u(enlaces, titulos, fecha):
+    # Preguntar al usuario para qué cliente exportar
+    dialog = xbmcgui.Dialog()
+    seleccion = dialog.select("Selecciona el cliente de IPTV", ["IPTV Simple Client", "Otra app de IPTV"])
+
+    if seleccion == -1:  # Si el usuario cancela
+        xbmcgui.Dialog().notification("Cancelado", "Exportación M3U cancelada.")
+        return
     ruta_m3u = seleccionar_ruta_m3u()
 
     if ruta_m3u:
         try:
             with open(ruta_m3u, 'w', encoding='utf-8') as f:
-                # Escribir la cabecera M3U y el origen del EPG
+                # Escribir la cabecera M3U
                 f.write("#EXTM3U url-tvg=\"https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml, https://raw.githubusercontent.com/Icastresana/lista1/main/epg.xml\"\n")
 
-                # Obtener la fecha actual en el formato dd-mm-YY HH:MM
-                fecha_actual = time.strftime('%d-%m-%Y %H:%M')
-
+                # Agregar un canal ficticio que muestre el origen dinámico y la fecha, con el enlace correcto
+                if seleccion == 1:  # Otra app de IPTV
+                    enlace_ficticio = "http://127.0.0.1:6878/ace/getstream?id=8819c851e10adc18ad914805ec4a13ddfb67063c"
+                else:  # IPTV Simple Client
+                    enlace_ficticio = "plugin://script.module.horus?action=play&id=8819c851e10adc18ad914805ec4a13ddfb67063c"
                 # Agregar un canal ficticio que muestre el origen dinámico y la fecha, con el enlace correcto
                 canal_ficticio = (
-                    f'#EXTINF:-1,Origen: {origen} (Fecha: {fecha_actual})\n'
-                    'plugin://script.module.horus?action=play&id=8819c851e10adc18ad914805ec4a13ddfb67063c\n'
+                    f'#EXTINF:-1,ElBarcoDesabeT (Fecha: {fecha})\n'
+                    f'{enlace_ficticio}\n'
                 )
                 f.write(canal_ficticio)
 
@@ -68,6 +77,9 @@ def exportar_m3u(enlaces, titulos, origen):
                     # Eliminar los últimos 4 dígitos del título y normalizar
                     nombre_canal = " ".join(titulo.split()[:-1]).strip().lower()  # Obtener solo el nombre sin los últimos 4 dígitos y en minúsculas
                     canal = next((c for c in canales if c.nombre.lower() == nombre_canal), None)  # Comparar en minúsculas
+                    titulo = titulo.replace("-", " ")
+                    if seleccion == 1:  # Otra app de IPTV
+                        enlace = enlace.replace("plugin://script.module.horus?action=play&id=", "http://127.0.0.1:6878/ace/getstream?id=")
                     if canal:
                         f.write(f'#EXTINF:-1 tvg-id="{canal.tvg_id}" tvg-logo="{canal.logo}",{titulo}\n{enlace}\n')
                     else:
