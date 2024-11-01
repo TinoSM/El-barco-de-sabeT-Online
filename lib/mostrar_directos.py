@@ -12,7 +12,7 @@ importlib.reload(datetime)
 
 def obtener_contenido_directos():
     # URL en Base64 para la lista de directos
-    prt = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC80ZDRmYzY5OWFjZWY1NDBmMmI1MDhlYzQ3NTRhODk4Yy9yYXcvZTkzNzVlNmNkYzNmYmM0ODIwOGIyNWQ1ZWI5Y2JmZDcyM2FlMTQxNS9iYXJjbzIudHh0"
+    prt = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC80ZDRmYzY5OWFjZWY1NDBmMmI1MDhlYzQ3NTRhODk4Yy9yYXcv"
 
     # Decodificar URL
     bms = base64.b64decode(prt).decode('utf-8')

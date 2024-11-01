@@ -6,7 +6,7 @@ import xbmcplugin
 import xbmc
 from cache_utils import guardar_cache  # Importa guardar_cache desde cache_utils
 # URL en Base64
-asdf = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC9jMDYyZGJjODAyYWU3NmMwNTBlOWU3YmM0MjhiN2U2ZC9yYXcvZWFjZmMyMzRjYzI5NDlhYTEwYTI5MjZkYTQzOTVhODViNWNiNmVlMy9iYXJjby50eHQ="
+asdf = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC9jMDYyZGJjODAyYWU3NmMwNTBlOWU3YmM0MjhiN2U2ZC9yYXcv"
 
 # Función para obtener el contenido de la web sin proxy
 def obtener_contenido_web_sin_proxy():
