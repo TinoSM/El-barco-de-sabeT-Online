@@ -3,7 +3,7 @@ import time
 import os
 import urllib.request
 import json
-# Definición de la clase Canal
+    # Definición de la clase Canal
 class Canal:
     def __init__(self, nombre, tvg_id, logo):
         self.nombre = nombre
@@ -75,7 +75,7 @@ def exportar_m3u(enlaces, titulos, fecha):
                 # Escribir los canales reales
                 for titulo, enlace in zip(titulos, enlaces):
                     # Eliminar los últimos 4 dígitos del título y normalizar
-                    nombre_canal = " ".join(titulo.split()[:-1]).strip().lower()  # Obtener solo el nombre sin los últimos 4 dígitos y en minúsculas
+                    nombre_canal = titulo.rsplit(" -", 1)[0].strip().lower()  # Obtener solo el nombre sin los últimos 4 dígitos y en minúsculas
                     canal = next((c for c in canales if c.nombre.lower() == nombre_canal), None)  # Comparar en minúsculas
                     titulo = titulo.replace("-", " ")
                     if seleccion == 1:  # Otra app de IPTV
