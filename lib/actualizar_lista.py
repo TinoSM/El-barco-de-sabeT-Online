@@ -93,11 +93,15 @@ def actualizar_lista(cache_file, handle):
     time.sleep(0.2)
 
     contenido = obtener_contenido_web_sin_proxy("XXX_put_a_url_here")
-    if contenido is None:
-        contenido = HTML_CODE_BACKUP
+    if not contenido and HTML_CODE_BACKUP.strip():
+        contenido = HTML_CODE_BACKUP.strip()
 
     if contenido:
         enlaces, titulos = extraer_enlaces(contenido, r'name":.*"(.*)".*"url":.*"(acestream://[^"]+)')
+        if not enlaces:
+            contenido = HTML_CODE_BACKUP.strip()
+            enlaces, titulos = extraer_enlaces(contenido, r'name":.*"(.*)".*"url":.*"(acestream://[^"]+)')
+            
 
         # Guardar en caché y mostrar confirmación de descarga
         origen = "Archivo Remoto"
