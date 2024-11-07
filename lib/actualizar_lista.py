@@ -7,6 +7,13 @@ import xbmc
 import re
 from cache_utils import guardar_cache  # Importa guardar_cache desde cache_utils
 
+# Just add the code to scrap (HTML source code of a website typically) from zeronet links
+HTML_DUMPED = """
+
+
+"""
+
+
 # Función para obtener el contenido de la web sin proxy
 def obtener_contenido_web_sin_proxy(url):
     headers = {
@@ -85,7 +92,7 @@ def actualizar_lista(cache_file, handle):
     xbmc.executebuiltin('Dialog.Close(busydialog)')
     time.sleep(0.2)
 
-
+    #contenido = HTML_DUMPED
     contenido = obtener_contenido_web_sin_proxy("XXX_puta_url_here")
 
     if contenido:
