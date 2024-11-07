@@ -8,7 +8,7 @@ import re
 from cache_utils import guardar_cache  # Importa guardar_cache desde cache_utils
 
 # Just add the code to scrap (HTML source code of a website typically) from zeronet links
-HTML_DUMPED = """
+HTML_CODE_BACKUP = """
 
 
 """
@@ -92,8 +92,9 @@ def actualizar_lista(cache_file, handle):
     xbmc.executebuiltin('Dialog.Close(busydialog)')
     time.sleep(0.2)
 
-    #contenido = HTML_DUMPED
-    contenido = obtener_contenido_web_sin_proxy("XXX_puta_url_here")
+    contenido = obtener_contenido_web_sin_proxy("XXX_put_a_url_here")
+    if contenido is None:
+        contenido = HTML_CODE_BACKUP
 
     if contenido:
         enlaces, titulos = extraer_enlaces(contenido, r'name":.*"(.*)".*"url":.*"(acestream://[^"]+)')
