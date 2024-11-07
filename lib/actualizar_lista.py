@@ -4,53 +4,79 @@ import time
 import xbmcgui
 import xbmcplugin
 import xbmc
+import re
 from cache_utils import guardar_cache  # Importa guardar_cache desde cache_utils
-# URL en Base64
-asdf = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9FbEJhcmNvRGVTYWJlVC9jMDYyZGJjODAyYWU3NmMwNTBlOWU3YmM0MjhiN2U2ZC9yYXcv"
 
 # Función para obtener el contenido de la web sin proxy
-def obtener_contenido_web_sin_proxy():
+def obtener_contenido_web_sin_proxy(url):
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     }
     try:
-        # Decodificar URL y obtener el contenido
-        qwert = base64.b64decode(asdf).decode('utf-8')
-        req = urllib.request.Request(qwert, headers=headers)
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as response:
-            contenido_base64 = response.read().decode('utf-8')
-            # Decodificar el contenido desde Base64
-            contenido = base64.b64decode(contenido_base64).decode('utf-8')
-            return contenido
+            return response.read().decode("utf-8")
     except Exception as e:
-        xbmcgui.Dialog().notification("Error", f"No se pudo obtener el contenido: {str(e)}")
-        return None
+        return None  # Devolvemos None en caso de error
 
-# Función para extraer enlaces del contenido obtenido
-def extraer_enlaces(contenido):
-    enlaces = []
-    titulos = []
 
-    # Saltar la primera línea
-    lineas = contenido.strip().split('\n')[1:]
+# Función para extraer enlaces de la página web
+def extraer_enlaces(html, regex):
+    enlaces_y_titulos = []
+    
+    
+    patrones = re.findall(regex, html)
 
-    # Procesar cada línea
-    for linea in lineas:
-        if ':' in linea:
-            partes = linea.split(':')
-            titulo_base = partes[0]
-            enlace_id = partes[1].strip()
+    for titulo, enlace in patrones:
+        if "://" in titulo:
+            titulo_tmp = titulo
+            titulo = enlace
+            enlace = titulo_tmp
 
-            # Crear el enlace en el formato adecuado
-            enlace = f"plugin://script.module.horus?action=play&id={enlace_id}"
+        nuevo_enlace = enlace.replace(
+            "acestream://", "plugin://script.module.horus?action=play&id="
+        )
 
-            # Modificar el título para incluir el enlace y los últimos cuatro dígitos del ID
-            titulo = f"{titulo_base} - {enlace[-4:]}"  # Agrega los últimos 4 dígitos del ID al título
+        id_acestream = enlace.split("://")[1]  # Obtener solo el ID
+        ultimos_digitos = id_acestream[-4:]  # Obtener los últimos 4 dígitos
+        
 
-            enlaces.append(enlace)
-            titulos.append(titulo)
 
-    return enlaces, titulos
+        enlaces_y_titulos.append((nuevo_enlace, f"{titulo.strip()} {ultimos_digitos}", 
+                                  titulo.strip()))
+        
+        
+        
+    def custom_sort_uhd(strings):
+        # Separate words that contain "2-9" and those that do not
+        regexp = r'UHD'
+        without_digits_2_to_9 = [s for s in strings if not re.search(regexp, s[2])]
+        with_digits_2_to_9 = [s for s in strings if re.search(regexp, s[2])]
+        
+        # Concatenate lists with non-digit or '1' words first, then '2-9' words
+        return without_digits_2_to_9 + with_digits_2_to_9
+        
+    def custom_sort_deportes_fav(strings):
+        # Separate words that contain "2-9" and those that do not
+        regexp = r'Liga|Campeones|DAZN'
+        without_digits_2_to_9 = [s for s in strings if re.search(regexp, s[2])]
+        with_digits_2_to_9 = [s for s in strings if not re.search(regexp, s[2])]
+        
+        # Concatenate lists with non-digit or '1' words first, then '2-9' words
+        return custom_sort_uhd(without_digits_2_to_9) + with_digits_2_to_9
+        
+    def custom_sort(strings):
+        # Separate words that contain "2-9" and those that do not
+        regexp = r'[2-9]\b|1[0-9]\b'
+        without_digits_2_to_9 = [s for s in strings if not re.search(regexp, s[2])]
+        with_digits_2_to_9 = [s for s in strings if re.search(regexp, s[2])]
+        
+        # Concatenate lists with non-digit or '1' words first, then '2-9' words
+        return custom_sort_deportes_fav(without_digits_2_to_9) + with_digits_2_to_9
+    
+    enlaces_y_titulos = custom_sort(enlaces_y_titulos)
+    
+    return [x[0] for x in enlaces_y_titulos], [x[1] for x in enlaces_y_titulos]
 
 
 # Función para actualizar y descargar la lista de enlaces
@@ -59,10 +85,11 @@ def actualizar_lista(cache_file, handle):
     xbmc.executebuiltin('Dialog.Close(busydialog)')
     time.sleep(0.2)
 
-    contenido = obtener_contenido_web_sin_proxy()
+
+    contenido = obtener_contenido_web_sin_proxy("XXX_puta_url_here")
 
     if contenido:
-        enlaces, titulos = extraer_enlaces(contenido)
+        enlaces, titulos = extraer_enlaces(contenido, r'name":.*"(.*)".*"url":.*"(acestream://[^"]+)')
 
         # Guardar en caché y mostrar confirmación de descarga
         origen = "Archivo Remoto"
